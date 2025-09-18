@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST() {
-  const email = "tarunkumarz211286@gmail.com";
-  const password = "Dare2devil1@";
+  const email = "tarun@autograf.ca";
+  const password = "admin@secret";
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(

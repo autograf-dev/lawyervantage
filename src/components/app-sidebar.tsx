@@ -53,11 +53,11 @@ const data = {
       items: [
         {
           title: "Contacts",
-          url: "#",
+          url: "/contacts",
         },
         {
-          title: "Oppotunities",
-          url: "#",
+          title: "Opportunities",
+          url: "/opportunities",
         },
        
       ],

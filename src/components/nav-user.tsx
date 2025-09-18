@@ -23,6 +23,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { supabase } from "@/lib/supabase"
+import Link from "next/link"
 
 export function NavUser({
   user,
@@ -94,10 +95,10 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <a href="/profile">
+                <Link href="/profile">
                   <User />
                   Profile
-                </a>
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

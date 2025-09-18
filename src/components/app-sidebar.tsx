@@ -14,6 +14,7 @@ import {
   PieChart,
   Settings2,
   SquareTerminal,
+  LayoutDashboard as IconDashboard,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -45,6 +46,12 @@ const data = {
 
   ],
   navMain: [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: IconDashboard,
+      isActive: false,
+    },
     {
       title: "CRM",
       url: "#",

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Infinity, Database, GalleryVerticalEnd, LayoutDashboard as IconDashboard } from "lucide-react"
+import { Infinity, Database, Scale, LayoutDashboard as IconDashboard } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -26,7 +26,7 @@ const data = {
   teams: [
     {
       name: "Lawyer Vantage",
-      logo: GalleryVerticalEnd,
+      logo: Scale,
       plan: "LawFirm",
     },
 

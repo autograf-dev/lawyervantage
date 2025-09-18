@@ -1,3 +1,4 @@
+"use client"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -14,7 +15,24 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
+
 export default function Page() {
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user
+      if (!u) {
+        window.location.href = "/login"
+        return
+      }
+      setUserEmail(u.email || null)
+      setUserName((u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || null)
+    })
+  }, [])
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -26,19 +44,7 @@ export default function Page() {
               orientation="vertical"
               className="mr-2 data-[orientation=vertical]:h-4"
             />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Building Your Application
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+            
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

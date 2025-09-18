@@ -27,6 +27,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { supabase } from "@/lib/supabase"
 
 // This is sample data.
 const data = {
@@ -74,6 +75,31 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [authUser, setAuthUser] = React.useState<{ name: string; email: string; avatar: string }>(
+    data.user
+  )
+
+  React.useEffect(() => {
+    let isMounted = true
+    supabase.auth.getUser().then(({ data: result }) => {
+      const u = result.user
+      if (!u || !isMounted) return
+      const meta = (u.user_metadata || {}) as Record<string, unknown>
+      const fullName = (meta.full_name as string) || (meta.name as string) || ""
+      const derivedName = fullName || (u.email ? String(u.email).split("@")[0] : data.user.name)
+      const avatarUrl =
+        (meta.avatar_url as string) || (meta.picture as string) || data.user.avatar || ""
+      setAuthUser({
+        name: derivedName,
+        email: u.email || data.user.email,
+        avatar: avatarUrl,
+      })
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -84,7 +110,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={authUser} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

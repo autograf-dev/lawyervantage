@@ -26,54 +26,124 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { Dialog as ConfirmDialog, DialogContent as ConfirmContent, DialogHeader as ConfirmHeader, DialogTitle as ConfirmTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 
+type OpportunityContact = {
+  id: string
+  name: string
+  companyName?: string | null
+  email?: string | null
+  phone?: string | null
+  tags: string[]
+  notes: string[]
+  tasks: string[]
+  calendarEvents: string[]
+  customFields: any[]
+  followers: any[]
+}
+
 type Opportunity = {
   id: string
-  contactName: string
-  firstName: string
-  lastName: string
-  email: string | null
-  phone: string | null
-  dateAdded: string
+  name: string
+  monetaryValue: number
+  pipelineId: string
+  pipelineStageId: string
+  assignedTo: string
+  status: string
+  source: string
+  lastStatusChangeAt: string
+  lastStageChangeAt: string
+  lastActionDate: string
+  indexVersion: string
+  createdAt: string
+  updatedAt: string
+  contactId: string
+  locationId: string
+  contact: OpportunityContact
 }
 
 function useOpportunities() {
   const [data, setData] = React.useState<Opportunity[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
-  const [error, setError] = React.useState<string | null>(null)
-
-  const fetchItems = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getContacts")
-      if (!res.ok) throw new Error("Failed to fetch opportunities")
-      const json = await res.json()
-      const arr = (json?.contacts?.contacts || []) as any[]
-      const mapped: Opportunity[] = arr.map((c) => ({
-        id: String(c.id),
-        contactName: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
-        firstName: c.firstName || "",
-        lastName: c.lastName || "",
-        email: c.email || null,
-        phone: c.phone || null,
-        dateAdded: c.dateAdded,
-      }))
-      setData(mapped)
-    } catch (e: any) {
-      setError(e?.message || "Unknown error")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
   React.useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
+    const now = new Date()
+    const mkId = () => Math.random().toString(36).slice(2, 10)
+    const dummy: Opportunity[] = [
+      {
+        id: mkId(),
+        name: "Website Redesign",
+        monetaryValue: 5000,
+        pipelineId: mkId(),
+        pipelineStageId: mkId(),
+        assignedTo: mkId(),
+        status: "open",
+        source: "webform",
+        lastStatusChangeAt: now.toISOString(),
+        lastStageChangeAt: now.toISOString(),
+        lastActionDate: now.toISOString(),
+        indexVersion: "1",
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        contactId: mkId(),
+        locationId: mkId(),
+        contact: {
+          id: mkId(),
+          name: "John Doe",
+          companyName: "Tesla Inc",
+          email: "john@doe.com",
+          phone: "+1 202-555-0107",
+          tags: ["priority", "enterprise"],
+          notes: ["Interested in Q4 timeline"],
+          tasks: ["Schedule discovery call"],
+          calendarEvents: [],
+          customFields: [],
+          followers: [],
+        },
+      },
+      {
+        id: mkId(),
+        name: "SEO Retainer",
+        monetaryValue: 1200,
+        pipelineId: mkId(),
+        pipelineStageId: mkId(),
+        assignedTo: mkId(),
+        status: "open",
+        source: "referral",
+        lastStatusChangeAt: now.toISOString(),
+        lastStageChangeAt: now.toISOString(),
+        lastActionDate: now.toISOString(),
+        indexVersion: "1",
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        contactId: mkId(),
+        locationId: mkId(),
+        contact: {
+          id: mkId(),
+          name: "Jane Smith",
+          companyName: "Acme Corp",
+          email: "jane@acme.com",
+          phone: "+1 415-555-0199",
+          tags: ["recurring"],
+          notes: ["Monthly reporting required"],
+          tasks: ["Prepare proposal"],
+          calendarEvents: [],
+          customFields: [],
+          followers: [],
+        },
+      },
+    ]
+    // Simulate load
+    const t = setTimeout(() => {
+      setData(dummy)
+      setLoading(false)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [])
 
-  return { data, loading, refetch: fetchItems, setData }
+  return { data, loading, setData }
 }
 
 export default function Page() {
-  const { data, loading, refetch, setData } = useOpportunities()
+  const { data, loading, setData } = useOpportunities()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -82,171 +152,128 @@ export default function Page() {
   const [detailsOpen, setDetailsOpen] = React.useState(false)
   const [selected, setSelected] = React.useState<Opportunity | null>(null)
   const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [formFirst, setFormFirst] = React.useState("")
-  const [formLast, setFormLast] = React.useState("")
-  const [formEmail, setFormEmail] = React.useState("")
-  const [formPhone, setFormPhone] = React.useState("")
+  const [formName, setFormName] = React.useState("")
+  const [formValue, setFormValue] = React.useState<string>("")
+  const [formStatus, setFormStatus] = React.useState("open")
+  const [formSource, setFormSource] = React.useState("")
+  const [formContactName, setFormContactName] = React.useState("")
+  const [formContactEmail, setFormContactEmail] = React.useState("")
+  const [formContactPhone, setFormContactPhone] = React.useState("")
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null)
   const [addLoading, setAddLoading] = React.useState(false)
 
-  function openDetails(contact: Opportunity) {
-    setSelected(contact)
+  function openDetails(opp: Opportunity) {
+    setSelected(opp)
     setDetailsOpen(true)
   }
 
-  function openEdit(contact?: Opportunity) {
-    if (contact) {
-      setEditingId(contact.id)
-      setFormFirst(contact.firstName || "")
-      setFormLast(contact.lastName || "")
-      setFormEmail(contact.email || "")
-      setFormPhone(contact.phone || "")
+  function openEdit(opp?: Opportunity) {
+    if (opp) {
+      setEditingId(opp.id)
+      setFormName(opp.name || "")
+      setFormValue(String(opp.monetaryValue ?? ""))
+      setFormStatus(opp.status || "open")
+      setFormSource(opp.source || "")
+      setFormContactName(opp.contact?.name || "")
+      setFormContactEmail(opp.contact?.email || "")
+      setFormContactPhone(opp.contact?.phone || "")
     } else {
       setEditingId(null)
-      setFormFirst("")
-      setFormLast("")
-      setFormEmail("")
-      setFormPhone("")
+      setFormName("")
+      setFormValue("")
+      setFormStatus("open")
+      setFormSource("")
+      setFormContactName("")
+      setFormContactEmail("")
+      setFormContactPhone("")
     }
     setOpenAdd(true)
   }
 
   async function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const firstName = formFirst.trim()
-    const lastName = formLast.trim()
-    const email = formEmail.trim()
-    const phone = formPhone.trim()
-    const name = [firstName, lastName].filter(Boolean).join(" ")
-    if (!firstName || !email) {
-      toast.error("First name and email are required")
+    const name = formName.trim()
+    const monetaryValue = Number(formValue)
+    const status = formStatus.trim() || "open"
+    const source = formSource.trim()
+    const contactName = formContactName.trim()
+    const contactEmail = formContactEmail.trim()
+    const contactPhone = formContactPhone.trim()
+    if (!name || Number.isNaN(monetaryValue)) {
+      toast.error("Name and monetary value are required")
       return
     }
 
     // EDIT FLOW
     if (editingId) {
-      const payload = { firstName, lastName, name, email, phone }
       const previous = data.find((c) => c.id === editingId) || null
+      const now = new Date().toISOString()
       const optimisticUpdated: Opportunity = {
+        ...(previous as Opportunity),
         id: editingId,
-        contactName: name || previous?.contactName || "",
-        firstName,
-        lastName,
-        email,
-        phone,
-        dateAdded: previous?.dateAdded || new Date().toISOString(),
+        name,
+        monetaryValue,
+        status,
+        source,
+        updatedAt: now,
+        contact: {
+          ...(previous?.contact || ({} as OpportunityContact)),
+          name: contactName || previous?.contact?.name || "",
+          email: contactEmail || previous?.contact?.email || "",
+          phone: contactPhone || previous?.contact?.phone || "",
+        },
       }
-      // optimistic update
       setData((prev) => prev.map((c) => (c.id === editingId ? optimisticUpdated : c)))
       if (selected?.id === editingId) setSelected(optimisticUpdated)
       setOpenAdd(false)
       setAddLoading(true)
-      toast.loading("Updating opportunity…", { id: "edit-opportunity" })
-      try {
-        const res = await fetch(`https://lawyervantage.netlify.app/.netlify/functions/updateCustomer?id=${encodeURIComponent(editingId)}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
-        if (!res.ok) throw new Error("Failed to update opportunity")
-        const json = await res.json().catch(() => null)
-        try {
-          const raw = (json && (json.contact || json.data || json.result || json)) || null
-          const server = raw && (raw.contact ? raw.contact : raw)
-          if (server) {
-            const mapped: Partial<Opportunity> = {
-              id: String(server.id ?? server.contactId ?? editingId),
-              contactName:
-                server.contactName ||
-                server.name ||
-                [server.firstName || "", server.lastName || ""].filter(Boolean).join(" ") ||
-                optimisticUpdated.contactName,
-              firstName: server.firstName ?? optimisticUpdated.firstName,
-              lastName: server.lastName ?? optimisticUpdated.lastName,
-              email: server.email ?? optimisticUpdated.email,
-              phone: server.phone ?? optimisticUpdated.phone,
-              dateAdded: server.dateAdded ?? optimisticUpdated.dateAdded,
-            }
-            setData((prev) => prev.map((c) => (c.id === editingId ? ({ ...c, ...mapped } as Opportunity) : c)))
-            if (selected?.id === editingId) setSelected((prevSel) => (prevSel ? ({ ...prevSel, ...mapped } as Opportunity) : prevSel))
-          }
-        } catch {}
-        toast.success("Opportunity updated", { id: "edit-opportunity" })
-      } catch (err) {
-        if (previous) {
-          setData((prev) => prev.map((c) => (c.id === editingId ? previous : c)))
-          if (selected?.id === editingId) setSelected(previous)
-        }
-        toast.error("Failed to update opportunity", { id: "edit-opportunity" })
-      } finally {
-        setAddLoading(false)
-        setEditingId(null)
-      }
+      toast.success("Opportunity updated", { id: "edit-opportunity" })
+      setAddLoading(false)
+      setEditingId(null)
       return
     }
 
     // CREATE FLOW
-    const payload = {
-      firstName,
-      lastName,
-      name,
-      email,
-      phone,
-      optionalFields: {
-        companyName: "Lawyer Vantage",
-        tags: ["new", "lead"],
-      },
-    }
+    const mkId = () => Math.random().toString(36).slice(2, 10)
     const tempId = `temp-${Date.now()}`
+    const now = new Date().toISOString()
     const optimistic: Opportunity = {
       id: tempId,
-      contactName: name,
-      firstName,
-      lastName,
-      email,
-      phone,
-      dateAdded: new Date().toISOString(),
+      name,
+      monetaryValue,
+      pipelineId: mkId(),
+      pipelineStageId: mkId(),
+      assignedTo: mkId(),
+      status,
+      source,
+      lastStatusChangeAt: now,
+      lastStageChangeAt: now,
+      lastActionDate: now,
+      indexVersion: "1",
+      createdAt: now,
+      updatedAt: now,
+      contactId: mkId(),
+      locationId: mkId(),
+      contact: {
+        id: mkId(),
+        name: contactName,
+        companyName: null,
+        email: contactEmail,
+        phone: contactPhone,
+        tags: [],
+        notes: [],
+        tasks: [],
+        calendarEvents: [],
+        customFields: [],
+        followers: [],
+      },
     }
     setData((prev) => [optimistic, ...prev])
     setOpenAdd(false)
     setAddLoading(true)
-    toast.loading("Creating opportunity…", { id: "add-opportunity" })
-    try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/addContact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) throw new Error("Failed to create opportunity")
-      const json = await res.json().catch(() => null)
-      try {
-        const raw = (json && (json.contact || json.data || json.result || json)) || null
-        const server = raw && (raw.contact ? raw.contact : raw)
-        if (server) {
-          const mapped = {
-            id: String(server.id ?? server.contactId ?? server._id ?? server.uuid ?? tempId),
-            contactName:
-              server.contactName ||
-              server.name ||
-              [server.firstName || "", server.lastName || ""].filter(Boolean).join(" ") ||
-              optimistic.contactName,
-            firstName: server.firstName ?? optimistic.firstName,
-            lastName: server.lastName ?? optimistic.lastName,
-            email: server.email ?? optimistic.email,
-            phone: server.phone ?? optimistic.phone,
-            dateAdded: server.dateAdded ?? optimistic.dateAdded,
-          } as Partial<Opportunity>
-          setData((prev) => prev.map((c) => (c.id === tempId ? ({ ...c, ...mapped } as Opportunity) : c)))
-        }
-      } catch {}
-      toast.success("Opportunity created", { id: "add-opportunity" })
-    } catch (err) {
-      setData((prev) => prev.filter((c) => c.id !== tempId))
-      toast.error("Failed to create opportunity", { id: "add-opportunity" })
-    } finally {
-      setAddLoading(false)
-    }
+    toast.success("Opportunity created", { id: "add-opportunity" })
+    setAddLoading(false)
   }
 
   function confirmDelete(id: string) {
@@ -266,16 +293,8 @@ export default function Page() {
     const previousData = data
     setData((prev) => prev.filter((c) => c.id !== id))
     toast.loading("Deleting…", { id: `del-${id}` })
-    try {
-      const res = await fetch(`https://lawyervantage.netlify.app/.netlify/functions/deleteContact?id=${encodeURIComponent(id)}`)
-      if (!res.ok) throw new Error("Failed to delete opportunity")
-      toast.success("Opportunity deleted", { id: `del-${id}` })
-    } catch (e) {
-      setData(previousData)
-      toast.error("Failed to delete opportunity", { id: `del-${id}` })
-    } finally {
-      setPendingDeleteId(null)
-    }
+    toast.success("Opportunity deleted", { id: `del-${id}` })
+    setPendingDeleteId(null)
   }
 
   const columns = React.useMemo<ColumnDef<Opportunity>[]>(
@@ -303,25 +322,27 @@ export default function Page() {
         size: 40,
       },
       {
-        accessorKey: "contactName",
+        accessorKey: "name",
         header: ({ column }) => (
           <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Name
+            Opportunity
             <ArrowUpDown />
           </Button>
         ),
         cell: ({ row }) => (
           <button
-            className="font-medium capitalize hover:underline"
+            className="font-medium hover:underline"
             onClick={() => openDetails(row.original)}
           >
-            {String(row.getValue("contactName") || "").toLowerCase()}
+            {String(row.getValue("name") || "")}
           </button>
         ),
       },
-      { accessorKey: "email", header: "Email", cell: ({ row }) => <div className="lowercase">{row.getValue("email") || "-"}</div> },
-      { accessorKey: "phone", header: "Phone", cell: ({ row }) => <div>{row.getValue("phone") || "-"}</div> },
-      { accessorKey: "dateAdded", header: "Added", cell: ({ row }) => <div>{new Date(row.getValue("dateAdded")).toLocaleString()}</div> },
+      { id: "contact", header: "Contact", cell: ({ row }) => <div>{row.original.contact?.name || "-"}</div> },
+      { accessorKey: "monetaryValue", header: "Value", cell: ({ row }) => <div>${Number(row.getValue("monetaryValue") || 0).toLocaleString()}</div> },
+      { accessorKey: "status", header: "Status" },
+      { accessorKey: "source", header: "Source" },
+      { accessorKey: "createdAt", header: "Created", cell: ({ row }) => <div>{new Date(row.getValue("createdAt")).toLocaleString()}</div> },
       {
         id: "actions",
         header: "",
@@ -394,8 +415,8 @@ export default function Page() {
             <div className="flex items-center gap-2">
               <Input
                 placeholder="Search opportunities..."
-                value={(table.getColumn("contactName")?.getFilterValue() as string) ?? ""}
-                onChange={(e) => table.getColumn("contactName")?.setFilterValue(e.target.value)}
+                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                onChange={(e) => table.getColumn("name")?.setFilterValue(e.target.value)}
                 className="w-[280px] h-9"
               />
             </div>
@@ -475,20 +496,32 @@ export default function Page() {
             </DialogHeader>
             <form className="grid gap-3" onSubmit={handleCreateSubmit}>
               <div className="grid gap-2">
-                <label className="text-sm">First name</label>
-                <Input name="firstName" required value={formFirst} onChange={(e) => setFormFirst(e.target.value)} />
+                <label className="text-sm">Opportunity name</label>
+                <Input name="name" required value={formName} onChange={(e) => setFormName(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm">Last name</label>
-                <Input name="lastName" value={formLast} onChange={(e) => setFormLast(e.target.value)} />
+                <label className="text-sm">Monetary value</label>
+                <Input name="value" type="number" required value={formValue} onChange={(e) => setFormValue(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm">Email</label>
-                <Input type="email" name="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                <label className="text-sm">Status</label>
+                <Input name="status" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm">Phone</label>
-                <Input name="phone" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
+                <label className="text-sm">Source</label>
+                <Input name="source" value={formSource} onChange={(e) => setFormSource(e.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm">Contact name</label>
+                <Input name="contactName" value={formContactName} onChange={(e) => setFormContactName(e.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm">Contact email</label>
+                <Input type="email" name="contactEmail" value={formContactEmail} onChange={(e) => setFormContactEmail(e.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm">Contact phone</label>
+                <Input name="contactPhone" value={formContactPhone} onChange={(e) => setFormContactPhone(e.target.value)} />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setOpenAdd(false)}>Cancel</Button>
@@ -503,14 +536,19 @@ export default function Page() {
         <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
           <SheetContent side="right" className="w-full sm:max-w-md">
             <SheetHeader>
-              <SheetTitle className="capitalize">{(selected?.contactName || "").toLowerCase() || "Opportunity"}</SheetTitle>
+              <SheetTitle className="capitalize">{selected?.name || "Opportunity"}</SheetTitle>
               <SheetDescription>
-                {selected?.email || "No email"}
+                {selected?.contact?.email || "No email"}
               </SheetDescription>
             </SheetHeader>
             <div className="px-4 space-y-2">
-              <div className="text-sm"><span className="text-muted-foreground">Phone:</span> {selected?.phone || "-"}</div>
-              <div className="text-sm"><span className="text-muted-foreground">Added:</span> {selected ? new Date(selected.dateAdded).toLocaleString() : "-"}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Contact:</span> {selected?.contact?.name || "-"}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Phone:</span> {selected?.contact?.phone || "-"}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Value:</span> ${selected ? selected.monetaryValue.toLocaleString() : 0}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Status:</span> {selected?.status || "-"}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Source:</span> {selected?.source || "-"}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Created:</span> {selected ? new Date(selected.createdAt).toLocaleString() : "-"}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Updated:</span> {selected ? new Date(selected.updatedAt).toLocaleString() : "-"}</div>
             </div>
             <SheetFooter>
               <div className="flex w-full items-center justify-end gap-2">

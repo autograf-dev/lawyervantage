@@ -7,6 +7,8 @@ import {
   Bot,
   Command,
   Frame,
+  Infinity,
+  Database,
   GalleryVerticalEnd,
   Map,
   PieChart,
@@ -29,130 +31,45 @@ import {
 // This is sample data.
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "Sutej",
+    email: "sutej@autgraph.com",
     avatar: "/avatars/shadcn.jpg",
   },
   teams: [
     {
-      name: "Acme Inc",
+      name: "Lawyer Vantage",
       logo: GalleryVerticalEnd,
-      plan: "Enterprise",
+      plan: "LawFirm",
     },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
+
   ],
   navMain: [
     {
-      title: "Playground",
+      title: "CRM",
       url: "#",
-      icon: SquareTerminal,
+      icon: Database,
       isActive: true,
       items: [
         {
-          title: "History",
+          title: "Contacts",
           url: "#",
         },
         {
-          title: "Starred",
+          title: "Oppotunities",
           url: "#",
         },
-        {
-          title: "Settings",
-          url: "#",
-        },
+       
       ],
     },
-    {
-      title: "Models",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
+    
   ],
   projects: [
     {
-      name: "Design Engineering",
+      name: "Meta",
       url: "#",
-      icon: Frame,
+      icon: Infinity,
     },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
+   
   ],
 }
 

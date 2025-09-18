@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -18,6 +19,15 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
+          <div className="flex w-full items-center justify-center pb-2">
+            <Image
+              src="/logo.png"
+              alt="Lawyer Vantage"
+              width={240}
+              height={60}
+              priority
+            />
+          </div>
           <CardTitle>Login to your account</CardTitle>
           <CardDescription>
             Enter your email below to login to your account
@@ -39,7 +49,7 @@ export function LoginForm({
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
                   <a
-                    href="#"
+                    href="/forgot-password"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
                     Forgot your password?
@@ -51,16 +61,7 @@ export function LoginForm({
                 <Button type="submit" className="w-full">
                   Login
                 </Button>
-                <Button variant="outline" className="w-full">
-                  Login with Google
-                </Button>
               </div>
-            </div>
-            <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <a href="#" className="underline underline-offset-4">
-                Sign up
-              </a>
             </div>
           </form>
         </CardContent>

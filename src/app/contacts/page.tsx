@@ -36,6 +36,16 @@ type Contact = {
   dateAdded: string
 }
 
+type RawContact = {
+  id?: string | number
+  contactName?: string
+  firstName?: string
+  lastName?: string
+  email?: string | null
+  phone?: string | null
+  dateAdded?: string
+}
+
 function useContacts() {
   const [data, setData] = React.useState<Contact[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
@@ -47,19 +57,20 @@ function useContacts() {
       const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getContacts")
       if (!res.ok) throw new Error("Failed to fetch contacts")
       const json = await res.json()
-      const arr = (json?.contacts?.contacts || []) as any[]
+      const arr = (json?.contacts?.contacts || []) as RawContact[]
       const mapped: Contact[] = arr.map((c) => ({
-        id: String(c.id),
+        id: String(c.id ?? ""),
         contactName: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
         firstName: c.firstName || "",
         lastName: c.lastName || "",
-        email: c.email || null,
-        phone: c.phone || null,
-        dateAdded: c.dateAdded,
+        email: c.email ?? null,
+        phone: c.phone ?? null,
+        dateAdded: c.dateAdded || new Date().toISOString(),
       }))
       setData(mapped)
-    } catch (e: any) {
-      setError(e?.message || "Unknown error")
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error"
+      setError(message)
     } finally {
       setLoading(false)
     }

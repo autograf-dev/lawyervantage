@@ -1,13 +1,6 @@
 "use client"
 import { AppSidebar } from "@/components/app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -43,19 +36,20 @@ function useContacts() {
       const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getContacts")
       if (!res.ok) throw new Error("Failed to fetch contacts")
       const json = await res.json()
-      const arr = (json?.contacts?.contacts || []) as any[]
+      const arr = (json?.contacts?.contacts || []) as Array<Partial<Contact>>
       const mapped: Contact[] = arr.map((c) => ({
-        id: String(c.id),
-        contactName: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
-        firstName: c.firstName || "",
-        lastName: c.lastName || "",
-        email: c.email || null,
-        phone: c.phone || null,
-        dateAdded: c.dateAdded,
+        id: String(c?.id ?? ""),
+        contactName: (c?.contactName as string) || `${(c?.firstName as string) || ""} ${(c?.lastName as string) || ""}`.trim(),
+        firstName: (c?.firstName as string) || "",
+        lastName: (c?.lastName as string) || "",
+        email: (c?.email as string) || null,
+        phone: (c?.phone as string) || null,
+        dateAdded: (c?.dateAdded as string) || new Date().toISOString(),
       }))
       setData(mapped)
-    } catch (e: any) {
-      setError(e?.message || "Unknown error")
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error"
+      setError(message)
     } finally {
       setLoading(false)
     }

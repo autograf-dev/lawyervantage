@@ -36,8 +36,8 @@ type OpportunityContact = {
   notes: string[]
   tasks: string[]
   calendarEvents: string[]
-  customFields: any[]
-  followers: any[]
+  customFields: unknown[]
+  followers: unknown[]
 }
 
 type Opportunity = {

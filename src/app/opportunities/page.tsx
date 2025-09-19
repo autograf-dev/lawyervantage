@@ -46,100 +46,85 @@ type Opportunity = {
   monetaryValue: number
   pipelineId: string
   pipelineStageId: string
-  assignedTo: string
+  pipelineStageUId?: string
+  assignedTo: string | null
   status: string
   source: string
-  lastStatusChangeAt: string
-  lastStageChangeAt: string
-  lastActionDate: string
-  indexVersion: string
+  lastStatusChangeAt?: string
+  lastStageChangeAt?: string
+  lastActionDate?: string
+  indexVersion?: number
   createdAt: string
   updatedAt: string
   contactId: string
-  locationId: string
+  locationId?: string
+  lostReasonId?: string | null
+  relations?: unknown[]
   contact: OpportunityContact
 }
 
 function useOpportunities() {
   const [data, setData] = React.useState<Opportunity[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
+  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    const now = new Date()
-    const mkId = () => Math.random().toString(36).slice(2, 10)
-    const dummy: Opportunity[] = [
-      {
-        id: mkId(),
-        name: "Website Redesign",
-        monetaryValue: 5000,
-        pipelineId: mkId(),
-        pipelineStageId: mkId(),
-        assignedTo: mkId(),
-        status: "open",
-        source: "webform",
-        lastStatusChangeAt: now.toISOString(),
-        lastStageChangeAt: now.toISOString(),
-        lastActionDate: now.toISOString(),
-        indexVersion: "1",
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-        contactId: mkId(),
-        locationId: mkId(),
-        contact: {
-          id: mkId(),
-          name: "John Doe",
-          companyName: "Tesla Inc",
-          email: "john@doe.com",
-          phone: "+1 202-555-0107",
-          tags: ["priority", "enterprise"],
-          notes: ["Interested in Q4 timeline"],
-          tasks: ["Schedule discovery call"],
-          calendarEvents: [],
-          customFields: [],
-          followers: [],
-        },
-      },
-      {
-        id: mkId(),
-        name: "SEO Retainer",
-        monetaryValue: 1200,
-        pipelineId: mkId(),
-        pipelineStageId: mkId(),
-        assignedTo: mkId(),
-        status: "open",
-        source: "referral",
-        lastStatusChangeAt: now.toISOString(),
-        lastStageChangeAt: now.toISOString(),
-        lastActionDate: now.toISOString(),
-        indexVersion: "1",
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-        contactId: mkId(),
-        locationId: mkId(),
-        contact: {
-          id: mkId(),
-          name: "Jane Smith",
-          companyName: "Acme Corp",
-          email: "jane@acme.com",
-          phone: "+1 415-555-0199",
-          tags: ["recurring"],
-          notes: ["Monthly reporting required"],
-          tasks: ["Prepare proposal"],
-          calendarEvents: [],
-          customFields: [],
-          followers: [],
-        },
-      },
-    ]
-    // Simulate load
-    const t = setTimeout(() => {
-      setData(dummy)
-      setLoading(false)
-    }, 250)
-    return () => clearTimeout(t)
+    let isMounted = true
+    async function fetchOpportunities() {
+      setLoading(true)
+      try {
+        const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
+        if (!res.ok) throw new Error("Failed to fetch opportunities")
+        const json = await res.json().catch(() => null)
+        const arr = (json && json.opportunities && json.opportunities.opportunities) || []
+        const mapped: Opportunity[] = arr.map((o: any) => ({
+          id: String(o.id ?? ""),
+          name: String(o.name ?? ""),
+          monetaryValue: Number(o.monetaryValue ?? 0),
+          pipelineId: String(o.pipelineId ?? ""),
+          pipelineStageId: String(o.pipelineStageId ?? ""),
+          pipelineStageUId: o.pipelineStageUId ?? undefined,
+          assignedTo: o.assignedTo ?? null,
+          status: String(o.status ?? "open"),
+          source: String(o.source ?? ""),
+          lastStatusChangeAt: o.lastStatusChangeAt ?? undefined,
+          lastStageChangeAt: o.lastStageChangeAt ?? undefined,
+          lastActionDate: o.lastActionDate ?? undefined,
+          indexVersion: typeof o.indexVersion === "number" ? o.indexVersion : Number(o.indexVersion ?? undefined),
+          createdAt: String(o.createdAt ?? new Date().toISOString()),
+          updatedAt: String(o.updatedAt ?? new Date().toISOString()),
+          contactId: String(o.contactId ?? o.contact?.id ?? ""),
+          locationId: o.locationId ? String(o.locationId) : undefined,
+          lostReasonId: (o.lostReasonId ?? null) as string | null,
+          relations: o.relations ?? [],
+          contact: {
+            id: String(o.contact?.id ?? o.contactId ?? ""),
+            name: String(o.contact?.name ?? o.relations?.find?.((r: any) => r.objectKey === "contact")?.fullName ?? ""),
+            companyName: o.contact?.companyName ?? null,
+            email: o.contact?.email ?? null,
+            phone: o.contact?.phone ?? null,
+            tags: Array.isArray(o.contact?.tags) ? o.contact.tags : [],
+            notes: [],
+            tasks: [],
+            calendarEvents: [],
+            customFields: [],
+            followers: [],
+          },
+        }))
+        if (isMounted) setData(mapped)
+      } catch (e: unknown) {
+        if (isMounted) setError(e instanceof Error ? e.message : "Unknown error")
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    fetchOpportunities()
+    return () => {
+      isMounted = false
+    }
   }, [])
 
-  return { data, loading, setData }
+  return { data, loading, setData, error }
 }
 
 export default function Page() {
@@ -250,7 +235,7 @@ export default function Page() {
       lastStatusChangeAt: now,
       lastStageChangeAt: now,
       lastActionDate: now,
-      indexVersion: "1",
+      indexVersion: 1,
       createdAt: now,
       updatedAt: now,
       contactId: mkId(),

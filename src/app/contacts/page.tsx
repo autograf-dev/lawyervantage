@@ -36,6 +36,15 @@ type Contact = {
   dateAdded: string
 }
 
+type ContactOpportunity = {
+  id: string
+  name: string
+  monetaryValue: number
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
 type RawContact = {
   id?: string | number
   contactName?: string
@@ -100,10 +109,13 @@ export default function Page() {
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null)
   const [addLoading, setAddLoading] = React.useState(false)
+  const [contactOpps, setContactOpps] = React.useState<ContactOpportunity[]>([])
+  const [contactOppsLoading, setContactOppsLoading] = React.useState(false)
 
   function openDetails(contact: Contact) {
     setSelected(contact)
     setDetailsOpen(true)
+    fetchContactOpportunities(contact.id)
   }
 
   function openEdit(contact?: Contact) {
@@ -121,6 +133,30 @@ export default function Page() {
       setFormPhone("")
     }
     setOpenAdd(true)
+  }
+
+  async function fetchContactOpportunities(contactId: string) {
+    setContactOppsLoading(true)
+    try {
+      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
+      if (!res.ok) throw new Error("Failed to fetch opportunities")
+      const json = await res.json()
+      const arr = (json?.opportunities?.opportunities || []) as any[]
+      const filtered = arr.filter((o) => String(o.contactId || o.contact?.id || "") === String(contactId))
+      const mapped: ContactOpportunity[] = filtered.map((o) => ({
+        id: String(o.id ?? ""),
+        name: String(o.name ?? ""),
+        monetaryValue: Number(o.monetaryValue ?? 0),
+        status: String(o.status ?? "open"),
+        createdAt: String(o.createdAt ?? new Date().toISOString()),
+        updatedAt: String(o.updatedAt ?? new Date().toISOString()),
+      }))
+      setContactOpps(mapped)
+    } catch {
+      setContactOpps([])
+    } finally {
+      setContactOppsLoading(false)
+    }
   }
 
   async function handleCreateSubmit(e: React.FormEvent) {
@@ -520,15 +556,38 @@ export default function Page() {
         <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
           <SheetContent side="right" className="w-full sm:max-w-md">
             <SheetHeader>
-              <SheetTitle className="capitalize">{(selected?.contactName || "").toLowerCase() || "Contact"}</SheetTitle>
-              <SheetDescription>
-                {selected?.email || "No email"}
-              </SheetDescription>
+          <SheetTitle className="capitalize">{(selected?.contactName || "").toLowerCase() || "Contact"}</SheetTitle>
+          <SheetDescription>
+            {selected?.email || "No email"}
+          </SheetDescription>
             </SheetHeader>
-            <div className="px-4 space-y-2">
-              <div className="text-sm"><span className="text-muted-foreground">Phone:</span> {selected?.phone || "-"}</div>
-              <div className="text-sm"><span className="text-muted-foreground">Added:</span> {selected ? new Date(selected.dateAdded).toLocaleString() : "-"}</div>
+        <div className="px-4 space-y-3">
+          <div className="text-sm"><span className="text-muted-foreground">Phone:</span> {selected?.phone || "-"}</div>
+          <div className="text-sm"><span className="text-muted-foreground">Added:</span> {selected ? new Date(selected.dateAdded).toLocaleString() : "-"}</div>
+
+          <div className="pt-2">
+            <div className="text-sm font-medium">Opportunities {contactOppsLoading ? "(loading…)" : `(${contactOpps.length})`}</div>
+            <div className="mt-2 rounded-md border">
+              {contactOppsLoading ? (
+                <div className="p-3 text-sm text-muted-foreground">Loading…</div>
+              ) : contactOpps.length === 0 ? (
+                <div className="p-3 text-sm text-muted-foreground">No opportunities</div>
+              ) : (
+                <ul className="divide-y">
+                  {contactOpps.map((o) => (
+                    <li key={o.id} className="p-3 flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-medium">{o.name}</div>
+                        <div className="text-xs text-muted-foreground">{o.status} · {new Date(o.updatedAt || o.createdAt).toLocaleDateString()}</div>
+                      </div>
+                      <div className="text-sm font-medium">${'{'}o.monetaryValue.toLocaleString(){'}'}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
+          </div>
+        </div>
             <SheetFooter>
               <div className="flex w-full items-center justify-end gap-2">
                 <Button variant="ghost" onClick={() => selected && openEdit(selected)}>

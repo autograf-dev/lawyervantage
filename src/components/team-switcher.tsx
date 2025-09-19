@@ -18,11 +18,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { useTeam, teams } from "@/contexts/team-context"
+import { useTeam } from "@/contexts/team-context"
 
 export function TeamSwitcher() {
   const { isMobile } = useSidebar()
-  const { currentTeam, setCurrentTeam } = useTeam()
+  const { currentTeam, setCurrentTeam, availableTeams } = useTeam()
 
   if (!currentTeam) {
     return null
@@ -66,7 +66,7 @@ export function TeamSwitcher() {
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Teams
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
+            {availableTeams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
                 onClick={() => setCurrentTeam(team)}

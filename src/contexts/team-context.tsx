@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Scale, FlaskConical, Building2 } from "lucide-react"
+import { useUser, UserRole } from "./user-context"
 
 type Team = {
   name: string
@@ -16,6 +17,8 @@ type TeamContextType = {
   setCurrentTeam: (team: Team) => void
   getTeamPrefix: () => string
   getTeamDashboardUrl: () => string
+  availableTeams: Team[]
+  hasAccessToTeam: (teamPrefix: string) => boolean
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined)
@@ -45,17 +48,46 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const [currentTeam, setCurrentTeam] = useState<Team>(teams[0])
   const router = useRouter()
   const pathname = usePathname()
+  const { user, hasAccessToTeam: userHasAccessToTeam } = useUser()
 
-  // Initialize team based on current path
+  // Filter teams based on user role
+  const availableTeams = teams.filter(team => userHasAccessToTeam(team.prefix))
+
+  // Initialize team based on current path and user access
   useEffect(() => {
-    if (pathname.startsWith("/lab")) {
-      setCurrentTeam(teams[1])
-    } else if (pathname.startsWith("/legal")) {
-      setCurrentTeam(teams[2])
-    } else if (pathname === "/" || pathname.startsWith("/dashboard") || pathname.startsWith("/contacts") || pathname.startsWith("/opportunities")) {
-      setCurrentTeam(teams[0])
+    if (!user) return
+
+    let targetTeam: Team | null = null
+
+    if (pathname.startsWith("/lab") && userHasAccessToTeam("/lab")) {
+      targetTeam = teams[1]
+    } else if (pathname.startsWith("/legal") && userHasAccessToTeam("/legal")) {
+      targetTeam = teams[2]
+    } else if ((pathname === "/" || pathname.startsWith("/dashboard") || pathname.startsWith("/contacts") || pathname.startsWith("/opportunities")) && userHasAccessToTeam("")) {
+      targetTeam = teams[0]
     }
-  }, [pathname])
+
+    // If no valid team found, redirect based on user role
+    if (!targetTeam && availableTeams.length > 0) {
+      if (user.role === "legal") {
+        // Legal users go to legal dashboard
+        targetTeam = teams[2]
+        router.push("/legal/dashboard")
+      } else if (user.role === "labs") {
+        // Labs users go to labs dashboard
+        targetTeam = teams[1]
+        router.push("/lab/dashboard")
+      } else {
+        // Admin users go to main dashboard
+        targetTeam = teams[0]
+        router.push("/dashboard")
+      }
+    }
+
+    if (targetTeam) {
+      setCurrentTeam(targetTeam)
+    }
+  }, [pathname, user, availableTeams, userHasAccessToTeam, router])
 
   const getTeamPrefix = () => currentTeam.prefix
 
@@ -64,6 +96,10 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   }
 
   const handleSetCurrentTeam = (team: Team) => {
+    if (!userHasAccessToTeam(team.prefix)) {
+      console.warn("User does not have access to this team")
+      return
+    }
     setCurrentTeam(team)
     // Navigate to the team's dashboard
     const dashboardUrl = team.prefix + "/dashboard"
@@ -77,6 +113,8 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
         setCurrentTeam: handleSetCurrentTeam,
         getTeamPrefix,
         getTeamDashboardUrl,
+        availableTeams,
+        hasAccessToTeam: userHasAccessToTeam,
       }}
     >
       {children}

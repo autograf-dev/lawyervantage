@@ -26,18 +26,36 @@ export function LoginForm({
     const email = String(formData.get("email") || "")
     const password = String(formData.get("password") || "")
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
     if (error) {
       alert(error.message)
       return
     }
+    
     // set a lightweight auth cookie for middleware
     try {
       await fetch("/api/set-auth-cookie", { method: "POST" })
     } catch {}
-    const redirect = new URLSearchParams(window.location.search).get("redirect") || "/dashboard"
-    window.location.href = redirect
+    
+    // Determine redirect based on user role
+    let redirectUrl = "/dashboard" // Default for admin
+    if (data.user) {
+      const role = data.user.user_metadata?.role
+      if (role === "legal") {
+        redirectUrl = "/legal/dashboard"
+      } else if (role === "labs") {
+        redirectUrl = "/lab/dashboard"
+      }
+    }
+    
+    // Check if there's a specific redirect parameter
+    const urlRedirect = new URLSearchParams(window.location.search).get("redirect")
+    if (urlRedirect) {
+      redirectUrl = urlRedirect
+    }
+    
+    window.location.href = redirectUrl
   }
 
   return (

@@ -1,5 +1,6 @@
 "use client"
 import { AppSidebar } from "@/components/app-sidebar"
+import { RoleGuard } from "@/components/role-guard"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -35,7 +36,7 @@ function useContacts() {
   const fetchContacts = async () => {
     setLoading(true)
     try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getContacts")
+      const res = await fetch("https://lawyervantage-tclegal.netlify.app/.netlify/functions/getContacts")
       if (!res.ok) throw new Error("Failed to fetch contacts")
       const json = await res.json()
       const arr = (json?.contacts?.contacts || []) as Array<Partial<Contact>>
@@ -184,9 +185,10 @@ export default function Page() {
     opportunities: { label: "Opportunities", color: "#10b981" },
   }
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
+    <RoleGuard requiredTeamPrefix="/legal">
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
@@ -401,5 +403,6 @@ export default function Page() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </RoleGuard>
   )
 }

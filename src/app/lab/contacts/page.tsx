@@ -1,6 +1,7 @@
 "use client"
 import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
+import { RoleGuard } from "@/components/role-guard"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -73,7 +74,7 @@ function useContacts() {
   const fetchContacts = React.useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getContacts")
+      const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/getContacts")
       if (!res.ok) throw new Error("Failed to fetch contacts")
       const json = await res.json()
       const arr = (json?.contacts?.contacts || []) as RawContact[]
@@ -430,9 +431,10 @@ export default function Page() {
   })
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
+    <RoleGuard requiredTeamPrefix="/lab">
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
@@ -624,5 +626,6 @@ export default function Page() {
         </ConfirmDialog>
       </SidebarInset>
     </SidebarProvider>
+    </RoleGuard>
   )
 }

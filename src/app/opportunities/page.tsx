@@ -169,11 +169,9 @@ export default function Page() {
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [formName, setFormName] = React.useState("")
   const [formValue, setFormValue] = React.useState<string>("")
-  const [formStatus, setFormStatus] = React.useState("open")
-  const [formSource, setFormSource] = React.useState("")
-  const [formContactName, setFormContactName] = React.useState("")
-  const [formContactEmail, setFormContactEmail] = React.useState("")
-  const [formContactPhone, setFormContactPhone] = React.useState("")
+  const [selectedContactId, setSelectedContactId] = React.useState<string>("")
+  const [contacts, setContacts] = React.useState<{ id: string; name: string }[]>([])
+  const [contactsLoading, setContactsLoading] = React.useState<boolean>(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null)
   const [addLoading, setAddLoading] = React.useState(false)
@@ -191,23 +189,50 @@ export default function Page() {
       setEditingId(opp.id)
       setFormName(opp.name || "")
       setFormValue(String(opp.monetaryValue ?? ""))
-      setFormStatus(opp.status || "open")
-      setFormSource(opp.source || "")
-      setFormContactName(opp.contact?.name || "")
-      setFormContactEmail(opp.contact?.email || "")
-      setFormContactPhone(opp.contact?.phone || "")
+      setSelectedContactId(opp.contactId || "")
     } else {
       setEditingId(null)
       setFormName("")
       setFormValue("")
-      setFormStatus("open")
-      setFormSource("")
-      setFormContactName("")
-      setFormContactEmail("")
-      setFormContactPhone("")
+      setSelectedContactId(contacts[0]?.id || "")
     }
     setOpenAdd(true)
   }
+
+  React.useEffect(() => {
+    let isMounted = true
+    async function fetchContacts() {
+      setContactsLoading(true)
+      try {
+        const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getContacts")
+        if (!res.ok) throw new Error("Failed to fetch contacts")
+        const json = await res.json().catch(() => null)
+        const arr = ((json && json.contacts && json.contacts.contacts) || []) as Array<{
+          id?: string | number
+          contactName?: string
+          firstName?: string
+          lastName?: string
+        }>
+        const mapped = arr.map((c) => ({
+          id: String(c.id ?? ""),
+          name: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
+        }))
+        if (isMounted) {
+          setContacts(mapped)
+          // default selection if none
+          setSelectedContactId((prev) => prev || (mapped[0]?.id || ""))
+        }
+      } catch {
+        if (isMounted) setContacts([])
+      } finally {
+        if (isMounted) setContactsLoading(false)
+      }
+    }
+    fetchContacts()
+    return () => {
+      isMounted = false
+    }
+  }, [])
   async function fetchRelatedForContact(contactId: string) {
     setRelatedLoading(true)
     try {
@@ -262,13 +287,9 @@ export default function Page() {
     e.preventDefault()
     const name = formName.trim()
     const monetaryValue = Number(formValue)
-    const status = formStatus.trim() || "open"
-    const source = formSource.trim()
-    const contactName = formContactName.trim()
-    const contactEmail = formContactEmail.trim()
-    const contactPhone = formContactPhone.trim()
-    if (!name || Number.isNaN(monetaryValue)) {
-      toast.error("Name and monetary value are required")
+    const contactId = selectedContactId
+    if (!name || Number.isNaN(monetaryValue) || !contactId) {
+      toast.error("Name, value, and contact are required")
       return
     }
 
@@ -281,14 +302,10 @@ export default function Page() {
         id: editingId,
         name,
         monetaryValue,
-        status,
-        source,
+        contactId,
         updatedAt: now,
         contact: {
           ...(previous?.contact || ({} as OpportunityContact)),
-          name: contactName || previous?.contact?.name || "",
-          email: contactEmail || previous?.contact?.email || "",
-          phone: contactPhone || previous?.contact?.phone || "",
         },
       }
       setData((prev) => prev.map((c) => (c.id === editingId ? optimisticUpdated : c)))
@@ -305,6 +322,7 @@ export default function Page() {
     const mkId = () => Math.random().toString(36).slice(2, 10)
     const tempId = `temp-${Date.now()}`
     const now = new Date().toISOString()
+    const contactName = contacts.find((c) => c.id === contactId)?.name || ""
     const optimistic: Opportunity = {
       id: tempId,
       name,
@@ -312,22 +330,22 @@ export default function Page() {
       pipelineId: mkId(),
       pipelineStageId: mkId(),
       assignedTo: mkId(),
-      status,
-      source,
+      status: "open",
+      source: "",
       lastStatusChangeAt: now,
       lastStageChangeAt: now,
       lastActionDate: now,
       indexVersion: 1,
       createdAt: now,
       updatedAt: now,
-      contactId: mkId(),
+      contactId,
       locationId: mkId(),
       contact: {
-        id: mkId(),
+        id: contactId,
         name: contactName,
         companyName: null,
-        email: contactEmail,
-        phone: contactPhone,
+        email: null,
+        phone: null,
         tags: [],
         notes: [],
         tasks: [],
@@ -339,8 +357,39 @@ export default function Page() {
     setData((prev) => [optimistic, ...prev])
     setOpenAdd(false)
     setAddLoading(true)
-    toast.success("Opportunity created", { id: "add-opportunity" })
-    setAddLoading(false)
+    toast.loading("Creating opportunity…", { id: "add-opportunity" })
+    try {
+      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/addOpportunity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, contactId, monetaryValue }),
+      })
+      if (!res.ok) throw new Error("Failed to create opportunity")
+      const json = await res.json().catch(() => null)
+      try {
+        const raw = (json && (json.opportunity || json.data || json.result || json)) || null
+        const server = raw && (raw.opportunity ? raw.opportunity : raw)
+        if (server) {
+          const mapped = {
+            id: String(server.id ?? server.opportunityId ?? server._id ?? server.uuid ?? tempId),
+            name: String(server.name ?? name),
+            monetaryValue: Number(server.monetaryValue ?? monetaryValue),
+            contactId: String(server.contactId ?? contactId),
+            updatedAt: server.updatedAt ?? now,
+            createdAt: server.createdAt ?? now,
+            status: String(server.status ?? "open"),
+            source: String(server.source ?? ""),
+          } as Partial<Opportunity>
+          setData((prev) => prev.map((o) => (o.id === tempId ? ({ ...o, ...mapped } as Opportunity) : o)))
+        }
+      } catch {}
+      toast.success("Opportunity created", { id: "add-opportunity" })
+    } catch (err) {
+      setData((prev) => prev.filter((o) => o.id !== tempId))
+      toast.error("Failed to create opportunity", { id: "add-opportunity" })
+    } finally {
+      setAddLoading(false)
+    }
   }
 
   function confirmDelete(id: string) {
@@ -571,24 +620,26 @@ export default function Page() {
                 <Input name="value" type="number" required value={formValue} onChange={(e) => setFormValue(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm">Status</label>
-                <Input name="status" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm">Source</label>
-                <Input name="source" value={formSource} onChange={(e) => setFormSource(e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm">Contact name</label>
-                <Input name="contactName" value={formContactName} onChange={(e) => setFormContactName(e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm">Contact email</label>
-                <Input type="email" name="contactEmail" value={formContactEmail} onChange={(e) => setFormContactEmail(e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm">Contact phone</label>
-                <Input name="contactPhone" value={formContactPhone} onChange={(e) => setFormContactPhone(e.target.value)} />
+                <label className="text-sm">Contact</label>
+                <select
+                  name="contactId"
+                  value={selectedContactId}
+                  onChange={(e) => setSelectedContactId(e.target.value)}
+                  className="h-9 rounded-md border px-3 text-sm"
+                  disabled={contactsLoading || contacts.length === 0}
+                >
+                  {contactsLoading ? (
+                    <option value="">Loading…</option>
+                  ) : contacts.length === 0 ? (
+                    <option value="">No contacts</option>
+                  ) : (
+                    contacts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setOpenAdd(false)}>Cancel</Button>

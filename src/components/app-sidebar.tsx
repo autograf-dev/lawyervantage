@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Infinity, Database, Scale, LayoutDashboard as IconDashboard } from "lucide-react"
+import { Infinity, Database, Scale, LayoutDashboard as IconDashboard, FlaskConical, Building2 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -29,7 +29,16 @@ const data = {
       logo: Scale,
       plan: "LawFirm",
     },
-
+    {
+      name: "Lawyer Vantage Legal Lab",
+      logo: FlaskConical,
+      plan: "Legal Lab",
+    },
+    {
+      name: "Lawyer Vantage Tc Legal",
+      logo: Building2,
+      plan: "Tc Legal",
+    },
   ],
   navMain: [
     {

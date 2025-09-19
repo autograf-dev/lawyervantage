@@ -38,6 +38,10 @@ function StatusBadge({ status }: { status: string }) {
         return 'bg-green-100 text-green-800 border-green-200'
       case 'lost':
         return 'bg-red-100 text-red-800 border-red-200'
+      case 'abandoned':
+        return 'bg-amber-100 text-amber-900 border-amber-200'
+      case 'all':
+        return 'bg-purple-100 text-purple-900 border-purple-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -140,7 +144,7 @@ function useOpportunities() {
           pipelineStageUId: o.pipelineStageUId ?? undefined,
           assignedTo: o.assignedTo ?? null,
           status: String(o.status ?? "open"),
-          source: String(o.source ?? ""),
+          source: String(o.source ?? "Lawyer Vantage"),
           lastStatusChangeAt: o.lastStatusChangeAt ?? undefined,
           lastStageChangeAt: o.lastStageChangeAt ?? undefined,
           lastActionDate: o.lastActionDate ?? undefined,
@@ -277,7 +281,7 @@ export default function Page() {
         pipelineStageUId: o.pipelineStageUId ?? undefined,
         assignedTo: o.assignedTo ?? null,
         status: String(o.status ?? "open"),
-        source: String(o.source ?? ""),
+        source: String(o.source ?? "Lawyer Vantage"),
         lastStatusChangeAt: o.lastStatusChangeAt ?? undefined,
         lastStageChangeAt: o.lastStageChangeAt ?? undefined,
         lastActionDate: o.lastActionDate ?? undefined,
@@ -332,18 +336,84 @@ export default function Page() {
         monetaryValue,
         contactId,
         status,
+        source: previous?.source || "Lawyer Vantage",
         updatedAt: now,
         contact: {
           ...(previous?.contact || ({} as OpportunityContact)),
+          id: contactId,
+          name: contacts.find((c) => c.id === contactId)?.name || (previous?.contact?.name || ""),
         },
       }
       setData((prev) => prev.map((c) => (c.id === editingId ? optimisticUpdated : c)))
       if (selected?.id === editingId) setSelected(optimisticUpdated)
       setOpenAdd(false)
       setAddLoading(true)
-      toast.success("Opportunity updated", { id: "edit-opportunity" })
-      setAddLoading(false)
-      setEditingId(null)
+      toast.loading("Updating opportunity…", { id: "edit-opportunity" })
+      try {
+        const payload: any = { id: editingId, name, status, monetaryValue, source: "Lawyer Vantage" }
+        if (contactId && contactId !== previous?.contactId) payload.contactId = contactId
+        const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/updateOpportunity", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) throw new Error("Failed to update opportunity")
+        const json = await res.json().catch(() => null)
+        try {
+          const raw = (json && (json.opportunity || json.data || json.result || json)) || null
+          const server = raw && (raw.opportunity ? raw.opportunity : raw)
+          if (server) {
+            const mapped: Partial<Opportunity> = {
+              id: String(server.id ?? server.opportunityId ?? editingId),
+              name: String(server.name ?? optimisticUpdated.name),
+              monetaryValue: Number(server.monetaryValue ?? optimisticUpdated.monetaryValue),
+              contactId: String(server.contactId ?? optimisticUpdated.contactId),
+              status: String(server.status ?? optimisticUpdated.status),
+              source: server.source ?? optimisticUpdated.source,
+              updatedAt: server.updatedAt ?? optimisticUpdated.updatedAt,
+              createdAt: server.createdAt ?? optimisticUpdated.createdAt,
+            }
+            const newContactName = contacts.find((c) => c.id === (mapped.contactId || optimisticUpdated.contactId))?.name
+            setData((prev) => prev.map((o) => (
+              o.id === editingId
+                ? ({
+                    ...o,
+                    ...mapped,
+                    contact: {
+                      ...o.contact,
+                      id: String(mapped.contactId || o.contact.id),
+                      name: newContactName || o.contact.name,
+                    },
+                  } as Opportunity)
+                : o
+            )))
+            if (selected?.id === editingId) setSelected((prevSel) => (
+              prevSel
+                ? ({
+                    ...prevSel,
+                    ...mapped,
+                    contact: {
+                      ...prevSel.contact,
+                      id: String(mapped.contactId || prevSel.contact.id),
+                      name: newContactName || prevSel.contact.name,
+                    },
+                  } as Opportunity)
+                : prevSel
+            ))
+          }
+        } catch {}
+        toast.success("Opportunity updated", { id: "edit-opportunity" })
+      } catch (err) {
+        // revert optimistic edit
+        if (previous) {
+          setData((prev) => prev.map((c) => (c.id === editingId ? (previous as Opportunity) : c)))
+          if (selected?.id === editingId) setSelected(previous)
+        }
+        toast.error("Failed to update opportunity", { id: "edit-opportunity" })
+      } finally {
+        setAddLoading(false)
+        setEditingId(null)
+      }
       return
     }
 
@@ -360,7 +430,7 @@ export default function Page() {
       pipelineStageId: mkId(),
       assignedTo: mkId(),
       status,
-      source: "",
+      source: "Lawyer Vantage",
       lastStatusChangeAt: now,
       lastStageChangeAt: now,
       lastActionDate: now,
@@ -391,7 +461,7 @@ export default function Page() {
       const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/addOpportunity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, contactId, monetaryValue, status }),
+        body: JSON.stringify({ name, contactId, monetaryValue, status, source: "Lawyer Vantage" }),
       })
       if (!res.ok) throw new Error("Failed to create opportunity")
       const json = await res.json().catch(() => null)
@@ -664,28 +734,30 @@ export default function Page() {
                 <label className="text-sm">Monetary value</label>
                 <Input name="value" type="number" required value={formValue} onChange={(e) => setFormValue(e.target.value)} />
               </div>
-              <div className="grid gap-2">
-                <label className="text-sm">Contact</label>
-                <select
-                  name="contactId"
-                  value={selectedContactId}
-                  onChange={(e) => setSelectedContactId(e.target.value)}
-                  className="h-9 rounded-md border px-3 text-sm"
-                  disabled={contactsLoading || contacts.length === 0}
-                >
-                  {contactsLoading ? (
-                    <option value="">Loading…</option>
-                  ) : contacts.length === 0 ? (
-                    <option value="">No contacts</option>
-                  ) : (
-                    contacts.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
+              {!editingId && (
+                <div className="grid gap-2">
+                  <label className="text-sm">Contact</label>
+                  <select
+                    name="contactId"
+                    value={selectedContactId}
+                    onChange={(e) => setSelectedContactId(e.target.value)}
+                    className="h-9 rounded-md border px-3 text-sm"
+                    disabled={contactsLoading || contacts.length === 0}
+                  >
+                    {contactsLoading ? (
+                      <option value="">Loading…</option>
+                    ) : contacts.length === 0 ? (
+                      <option value="">No contacts</option>
+                    ) : (
+                      contacts.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              )}
               <div className="grid gap-2">
                 <label className="text-sm">Status</label>
                 <select
@@ -695,9 +767,10 @@ export default function Page() {
                   className="h-9 rounded-md border px-3 text-sm"
                 >
                   <option value="open">Open</option>
-                  <option value="closed">Closed</option>
                   <option value="won">Won</option>
                   <option value="lost">Lost</option>
+                  <option value="abandoned">Abandoned</option>
+                  <option value="all">All</option>
                 </select>
               </div>
               <div className="flex justify-end gap-2 pt-2">

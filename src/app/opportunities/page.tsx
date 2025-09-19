@@ -207,13 +207,13 @@ export default function Page() {
   const [relatedForContact, setRelatedForContact] = React.useState<Opportunity[]>([])
   const [relatedLoading, setRelatedLoading] = React.useState(false)
 
-  function openDetails(opp: Opportunity) {
+  const openDetails = React.useCallback((opp: Opportunity) => {
     setSelected(opp)
     setDetailsOpen(true)
     fetchRelatedForContact(opp.contactId)
-  }
+  }, [])
 
-  function openEdit(opp?: Opportunity) {
+  const openEdit = React.useCallback((opp?: Opportunity) => {
     if (opp) {
       setEditingId(opp.id)
       setFormName(opp.name || "")
@@ -228,7 +228,7 @@ export default function Page() {
       setFormStatus("open")
     }
     setOpenAdd(true)
-  }
+  }, [contacts])
 
   React.useEffect(() => {
     let isMounted = true
@@ -350,7 +350,7 @@ export default function Page() {
       setAddLoading(true)
       toast.loading("Updating opportunity…", { id: "edit-opportunity" })
       try {
-        const payload: any = { id: editingId, name, status, monetaryValue, source: "Lawyer Vantage" }
+        const payload: { id: string; name: string; status: string; monetaryValue: number; source: string; contactId?: string } = { id: editingId, name, status, monetaryValue, source: "Lawyer Vantage" }
         if (contactId && contactId !== previous?.contactId) payload.contactId = contactId
         const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/updateOpportunity", {
           method: "PUT",
@@ -403,7 +403,7 @@ export default function Page() {
           }
         } catch {}
         toast.success("Opportunity updated", { id: "edit-opportunity" })
-      } catch (err) {
+      } catch {
         // revert optimistic edit
         if (previous) {
           setData((prev) => prev.map((c) => (c.id === editingId ? (previous as Opportunity) : c)))
@@ -483,7 +483,7 @@ export default function Page() {
         }
       } catch {}
       toast.success("Opportunity created", { id: "add-opportunity" })
-    } catch (err) {
+    } catch {
       setData((prev) => prev.filter((o) => o.id !== tempId))
       toast.error("Failed to create opportunity", { id: "add-opportunity" })
     } finally {
@@ -516,7 +516,7 @@ export default function Page() {
       })
       if (!res.ok) throw new Error("Failed to delete opportunity")
       toast.success("Opportunity deleted", { id: `del-${id}` })
-    } catch (e) {
+    } catch {
       setData(previousData)
       toast.error("Failed to delete opportunity", { id: `del-${id}` })
     } finally {

@@ -69,7 +69,6 @@ type RawContact = {
 function useContacts() {
   const [data, setData] = React.useState<Contact[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
-  const [error, setError] = React.useState<string | null>(null)
 
   const fetchContacts = React.useCallback(async () => {
     setLoading(true)
@@ -88,9 +87,8 @@ function useContacts() {
         dateAdded: c.dateAdded || new Date().toISOString(),
       }))
       setData(mapped)
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Unknown error"
-      setError(message)
+    } catch {
+      // Error handling removed - could add logging here if needed
     } finally {
       setLoading(false)
     }
@@ -100,11 +98,11 @@ function useContacts() {
     fetchContacts()
   }, [fetchContacts])
 
-  return { data, loading, refetch: fetchContacts, setData }
+  return { data, loading, setData }
 }
 
 export default function Page() {
-  const { data, loading, refetch, setData } = useContacts()
+  const { data, loading, setData } = useContacts()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -123,13 +121,13 @@ export default function Page() {
   const [contactOpps, setContactOpps] = React.useState<ContactOpportunity[]>([])
   const [contactOppsLoading, setContactOppsLoading] = React.useState(false)
 
-  function openDetails(contact: Contact) {
+  const openDetails = React.useCallback((contact: Contact) => {
     setSelected(contact)
     setDetailsOpen(true)
     fetchContactOpportunities(contact.id)
-  }
+  }, [])
 
-  function openEdit(contact?: Contact) {
+  const openEdit = React.useCallback((contact?: Contact) => {
     if (contact) {
       setEditingId(contact.id)
       setFormFirst(contact.firstName || "")
@@ -144,7 +142,7 @@ export default function Page() {
       setFormPhone("")
     }
     setOpenAdd(true)
-  }
+  }, [])
 
   async function fetchContactOpportunities(contactId: string) {
     setContactOppsLoading(true)
@@ -231,7 +229,7 @@ export default function Page() {
           }
         } catch {}
         toast.success("Contact updated", { id: "edit-contact" })
-      } catch (err) {
+      } catch {
         // revert optimistic edit
         if (previous) {
           setData((prev) => prev.map((c) => (c.id === editingId ? previous : c)))
@@ -302,7 +300,7 @@ export default function Page() {
         }
       } catch {}
       toast.success("Contact created", { id: "add-contact" })
-    } catch (err) {
+    } catch {
       // revert optimistic add
       setData((prev) => prev.filter((c) => c.id !== tempId))
       toast.error("Failed to create contact", { id: "add-contact" })
@@ -333,7 +331,7 @@ export default function Page() {
       const res = await fetch(`https://lawyervantage.netlify.app/.netlify/functions/deleteContact?id=${encodeURIComponent(id)}`)
       if (!res.ok) throw new Error("Failed to delete contact")
       toast.success("Contact deleted", { id: `del-${id}` })
-    } catch (e) {
+    } catch {
       // revert optimistic removal
       setData(previousData)
       toast.error("Failed to delete contact", { id: `del-${id}` })

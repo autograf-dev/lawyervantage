@@ -7,7 +7,7 @@ type ContainerProps = React.HTMLAttributes<HTMLDivElement> & {
   config: ChartConfig
 }
 
-export function ChartContainer({ config, className, style, children, ...rest }: ContainerProps) {
+export function ChartContainer({ className, style, children, ...rest }: ContainerProps) {
   return (
     <div className={className} style={style} {...rest}>
       {children}
@@ -24,17 +24,17 @@ export function ChartTooltipContent({ className, nameKey, labelFormatter }: Tool
   // Recharts will inject payload/label via context through content component props
   return (
     <div className={className + " rounded-md border bg-background p-2 shadow-sm"}>
-      {/* @ts-ignore - properties provided by Recharts at runtime */}
-      {({ payload, label }) => (
+      {/* @ts-expect-error - properties provided by Recharts at runtime */}
+      {({ payload, label }: { payload?: Array<{ dataKey: string; name?: string; value: string | number; color?: string }>; label?: string }) => (
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">
-            {labelFormatter ? labelFormatter(label) : String(label)}
+            {labelFormatter ? labelFormatter(label || '') : String(label || '')}
           </div>
           <div className="space-y-0.5">
             {Array.isArray(payload)
-              ? payload.map((p: any) => (
+              ? payload.map((p) => (
                   <div key={p.dataKey} className="flex items-center justify-between gap-4 text-sm">
-                    <span className="capitalize">{(nameKey && p[nameKey]) || p.name || p.dataKey}</span>
+                    <span className="capitalize">{(nameKey && p[nameKey as keyof typeof p]) || p.name || p.dataKey}</span>
                     <span className="font-medium">{p.value}</span>
                   </div>
                 ))
@@ -43,11 +43,12 @@ export function ChartTooltipContent({ className, nameKey, labelFormatter }: Tool
         </div>
       )}
     </div>
-  ) as any
+  )
 }
 
-export function ChartTooltip(props: any) {
+export function ChartTooltip(props: Record<string, unknown>) {
   // This component simply forwards props to Recharts Tooltip
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Tooltip } = require("recharts")
   return <Tooltip {...props} />
 }

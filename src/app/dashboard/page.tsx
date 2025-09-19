@@ -1,6 +1,5 @@
 "use client"
 import { AppSidebar } from "@/components/app-sidebar"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -119,8 +118,6 @@ function useOpportunities() {
 }
 
 export default function Page() {
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string | null>(null)
   const { data: contacts, loading: loadingContacts } = useContacts()
   const { data: opportunities, loading: loadingOpps } = useOpportunities()
   const loading = loadingContacts || loadingOpps
@@ -132,8 +129,6 @@ export default function Page() {
         window.location.href = "/login"
         return
       }
-      setUserEmail(u.email || null)
-      setUserName((u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || null)
     })
   }, [])
 

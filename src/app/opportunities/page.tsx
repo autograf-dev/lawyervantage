@@ -147,10 +147,13 @@ export default function Page() {
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null)
   const [addLoading, setAddLoading] = React.useState(false)
+  const [relatedForContact, setRelatedForContact] = React.useState<Opportunity[]>([])
+  const [relatedLoading, setRelatedLoading] = React.useState(false)
 
   function openDetails(opp: Opportunity) {
     setSelected(opp)
     setDetailsOpen(true)
+    fetchRelatedForContact(opp.contactId)
   }
 
   function openEdit(opp?: Opportunity) {
@@ -174,6 +177,55 @@ export default function Page() {
       setFormContactPhone("")
     }
     setOpenAdd(true)
+  }
+  async function fetchRelatedForContact(contactId: string) {
+    setRelatedLoading(true)
+    try {
+      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
+      if (!res.ok) throw new Error("Failed to fetch opportunities")
+      const json = await res.json().catch(() => null)
+      const arr = (json && json.opportunities && json.opportunities.opportunities) || []
+      const filtered = arr.filter((o: any) => String(o.contactId || o.contact?.id || "") === String(contactId))
+      const mapped: Opportunity[] = filtered.map((o: any) => ({
+        id: String(o.id ?? ""),
+        name: String(o.name ?? ""),
+        monetaryValue: Number(o.monetaryValue ?? 0),
+        pipelineId: String(o.pipelineId ?? ""),
+        pipelineStageId: String(o.pipelineStageId ?? ""),
+        pipelineStageUId: o.pipelineStageUId ?? undefined,
+        assignedTo: o.assignedTo ?? null,
+        status: String(o.status ?? "open"),
+        source: String(o.source ?? ""),
+        lastStatusChangeAt: o.lastStatusChangeAt ?? undefined,
+        lastStageChangeAt: o.lastStageChangeAt ?? undefined,
+        lastActionDate: o.lastActionDate ?? undefined,
+        indexVersion: typeof o.indexVersion === "number" ? o.indexVersion : Number(o.indexVersion ?? undefined),
+        createdAt: String(o.createdAt ?? new Date().toISOString()),
+        updatedAt: String(o.updatedAt ?? new Date().toISOString()),
+        contactId: String(o.contactId ?? o.contact?.id ?? ""),
+        locationId: o.locationId ? String(o.locationId) : undefined,
+        lostReasonId: (o.lostReasonId ?? null) as string | null,
+        relations: o.relations ?? [],
+        contact: {
+          id: String(o.contact?.id ?? o.contactId ?? ""),
+          name: String(o.contact?.name ?? o.relations?.find?.((r: any) => r.objectKey === "contact")?.fullName ?? ""),
+          companyName: o.contact?.companyName ?? null,
+          email: o.contact?.email ?? null,
+          phone: o.contact?.phone ?? null,
+          tags: Array.isArray(o.contact?.tags) ? o.contact.tags : [],
+          notes: [],
+          tasks: [],
+          calendarEvents: [],
+          customFields: [],
+          followers: [],
+        },
+      }))
+      setRelatedForContact(mapped)
+    } catch {
+      setRelatedForContact([])
+    } finally {
+      setRelatedLoading(false)
+    }
   }
 
   async function handleCreateSubmit(e: React.FormEvent) {
@@ -526,7 +578,7 @@ export default function Page() {
                 {selected?.contact?.email || "No email"}
               </SheetDescription>
             </SheetHeader>
-            <div className="px-4 space-y-2">
+          <div className="px-4 space-y-3">
               <div className="text-sm"><span className="text-muted-foreground">Contact:</span> {selected?.contact?.name || "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Phone:</span> {selected?.contact?.phone || "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Value:</span> ${selected ? selected.monetaryValue.toLocaleString() : 0}</div>
@@ -534,6 +586,29 @@ export default function Page() {
               <div className="text-sm"><span className="text-muted-foreground">Source:</span> {selected?.source || "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Created:</span> {selected ? new Date(selected.createdAt).toLocaleString() : "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Updated:</span> {selected ? new Date(selected.updatedAt).toLocaleString() : "-"}</div>
+
+            <div className="pt-2">
+              <div className="text-sm font-medium">Contact's opportunities {relatedLoading ? "(loading…)" : `(${relatedForContact.length})`}</div>
+              <div className="mt-2 rounded-md border">
+                {relatedLoading ? (
+                  <div className="p-3 text-sm text-muted-foreground">Loading…</div>
+                ) : relatedForContact.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground">No opportunities</div>
+                ) : (
+                  <ul className="divide-y">
+                    {relatedForContact.map((o) => (
+                      <li key={o.id} className="p-3 flex items-center justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-medium">{o.name}</div>
+                          <div className="text-xs text-muted-foreground">{o.status} · {new Date(o.updatedAt || o.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <div className="text-sm font-medium">${o.monetaryValue.toLocaleString()}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
             </div>
             <SheetFooter>
               <div className="flex w-full items-center justify-end gap-2">

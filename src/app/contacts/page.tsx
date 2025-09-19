@@ -580,7 +580,7 @@ export default function Page() {
                         <div className="text-sm font-medium">{o.name}</div>
                         <div className="text-xs text-muted-foreground">{o.status} · {new Date(o.updatedAt || o.createdAt).toLocaleDateString()}</div>
                       </div>
-                      <div className="text-sm font-medium">${'{'}o.monetaryValue.toLocaleString(){'}'}</div>
+                      <div className="text-sm font-medium">${o.monetaryValue.toLocaleString()}</div>
                     </li>
                   ))}
                 </ul>

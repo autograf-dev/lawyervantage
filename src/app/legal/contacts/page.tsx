@@ -74,7 +74,7 @@ function useContacts() {
   const fetchContacts = React.useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/getContacts")
+      const res = await fetch("https://lawyervantage-tclegal.netlify.app/.netlify/functions/getContacts")
       if (!res.ok) throw new Error("Failed to fetch contacts")
       const json = await res.json()
       const arr = (json?.contacts?.contacts || []) as RawContact[]

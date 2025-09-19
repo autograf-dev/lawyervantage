@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Infinity, Database, Scale, LayoutDashboard as IconDashboard, FlaskConical, Building2 } from "lucide-react"
+import { Infinity, Database, LayoutDashboard as IconDashboard } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -15,6 +15,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { supabase } from "@/lib/supabase"
+import { useTeam } from "@/contexts/team-context"
 
 // This is sample data.
 const data = {
@@ -23,49 +24,6 @@ const data = {
     email: "sutej@autgraph.com",
     avatar: "/avatars/shadcn.jpg",
   },
-  teams: [
-    {
-      name: "Lawyer Vantage",
-      logo: Scale,
-      plan: "LawFirm",
-    },
-    {
-      name: "Lawyer Vantage Legal Lab",
-      logo: FlaskConical,
-      plan: "Legal Lab",
-    },
-    {
-      name: "Lawyer Vantage Tc Legal",
-      logo: Building2,
-      plan: "Tc Legal",
-    },
-  ],
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-      isActive: false,
-    },
-    {
-      title: "CRM",
-      url: "#",
-      icon: Database,
-      isActive: true,
-      items: [
-        {
-          title: "Contacts",
-          url: "/contacts",
-        },
-        {
-          title: "Opportunities",
-          url: "/opportunities",
-        },
-       
-      ],
-    },
-    
-  ],
   projects: [
     {
       name: "Meta",
@@ -80,6 +38,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [authUser, setAuthUser] = React.useState<{ name: string; email: string; avatar: string }>(
     data.user
   )
+  const { getTeamPrefix } = useTeam()
 
   React.useEffect(() => {
     let isMounted = true
@@ -102,13 +61,42 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, [])
 
+  // Generate navigation items based on current team
+  const navMain = React.useMemo(() => {
+    const prefix = getTeamPrefix()
+    return [
+      {
+        title: "Dashboard",
+        url: `${prefix}/dashboard`,
+        icon: IconDashboard,
+        isActive: false,
+      },
+      {
+        title: "CRM",
+        url: "#",
+        icon: Database,
+        isActive: true,
+        items: [
+          {
+            title: "Contacts",
+            url: `${prefix}/contacts`,
+          },
+          {
+            title: "Opportunities",
+            url: `${prefix}/opportunities`,
+          },
+        ],
+      },
+    ]
+  }, [getTeamPrefix])
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>

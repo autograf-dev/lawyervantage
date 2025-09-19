@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Scale, FlaskConical, Building2 } from "lucide-react"
-import { useUser, UserRole } from "./user-context"
+import { useUser } from "./user-context"
 
 type Team = {
   name: string
@@ -58,6 +58,15 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
 
     let targetTeam: Team | null = null
+
+    // Admin-only pages that don't need team context
+    const adminOnlyPages = ["/teams", "/profile"]
+    if (user.role === "admin" && adminOnlyPages.some(page => pathname.startsWith(page))) {
+      // For admin-only pages, set the main team but don't redirect
+      targetTeam = teams[0]
+      setCurrentTeam(targetTeam)
+      return
+    }
 
     if (pathname.startsWith("/lab") && userHasAccessToTeam("/lab")) {
       targetTeam = teams[1]

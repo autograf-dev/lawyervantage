@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Infinity, Database, LayoutDashboard as IconDashboard } from "lucide-react"
+import { Infinity, Database, LayoutDashboard as IconDashboard, Users } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar"
 import { supabase } from "@/lib/supabase"
 import { useTeam } from "@/contexts/team-context"
+import { useUser } from "@/contexts/user-context"
 
 // This is sample data.
 const data = {
@@ -39,6 +40,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     data.user
   )
   const { getTeamPrefix } = useTeam()
+  const { user } = useUser()
 
   React.useEffect(() => {
     let isMounted = true
@@ -64,7 +66,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Generate navigation items based on current team
   const navMain = React.useMemo(() => {
     const prefix = getTeamPrefix()
-    return [
+    const items = [
       {
         title: "Dashboard",
         url: `${prefix}/dashboard`,
@@ -88,7 +90,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ],
       },
     ]
-  }, [getTeamPrefix])
+
+    // Add Teams menu item only for admin users
+    if (user?.role === "admin") {
+      items.push({
+        title: "Teams",
+        url: "/teams",
+        icon: Users,
+        isActive: false,
+      })
+    }
+
+    return items
+  }, [getTeamPrefix, user?.role])
 
   return (
     <Sidebar collapsible="icon" {...props}>

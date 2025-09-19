@@ -26,6 +26,30 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { Dialog as ConfirmDialog, DialogContent as ConfirmContent, DialogHeader as ConfirmHeader, DialogTitle as ConfirmTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 
+// Badge component for status display
+function StatusBadge({ status }: { status: string }) {
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'closed':
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+      case 'won':
+        return 'bg-green-100 text-green-800 border-green-200'
+      case 'lost':
+        return 'bg-red-100 text-red-800 border-red-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
+      {status}
+    </span>
+  )
+}
+
 type OpportunityContact = {
   id: string
   name: string
@@ -170,6 +194,7 @@ export default function Page() {
   const [formName, setFormName] = React.useState("")
   const [formValue, setFormValue] = React.useState<string>("")
   const [selectedContactId, setSelectedContactId] = React.useState<string>("")
+  const [formStatus, setFormStatus] = React.useState<string>("open")
   const [contacts, setContacts] = React.useState<{ id: string; name: string }[]>([])
   const [contactsLoading, setContactsLoading] = React.useState<boolean>(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -190,11 +215,13 @@ export default function Page() {
       setFormName(opp.name || "")
       setFormValue(String(opp.monetaryValue ?? ""))
       setSelectedContactId(opp.contactId || "")
+      setFormStatus(opp.status || "open")
     } else {
       setEditingId(null)
       setFormName("")
       setFormValue("")
       setSelectedContactId(contacts[0]?.id || "")
+      setFormStatus("open")
     }
     setOpenAdd(true)
   }
@@ -288,6 +315,7 @@ export default function Page() {
     const name = formName.trim()
     const monetaryValue = Number(formValue)
     const contactId = selectedContactId
+    const status = formStatus
     if (!name || Number.isNaN(monetaryValue) || !contactId) {
       toast.error("Name, value, and contact are required")
       return
@@ -303,6 +331,7 @@ export default function Page() {
         name,
         monetaryValue,
         contactId,
+        status,
         updatedAt: now,
         contact: {
           ...(previous?.contact || ({} as OpportunityContact)),
@@ -330,7 +359,7 @@ export default function Page() {
       pipelineId: mkId(),
       pipelineStageId: mkId(),
       assignedTo: mkId(),
-      status: "open",
+      status,
       source: "",
       lastStatusChangeAt: now,
       lastStageChangeAt: now,
@@ -362,7 +391,7 @@ export default function Page() {
       const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/addOpportunity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, contactId, monetaryValue }),
+        body: JSON.stringify({ name, contactId, monetaryValue, status }),
       })
       if (!res.ok) throw new Error("Failed to create opportunity")
       const json = await res.json().catch(() => null)
@@ -409,8 +438,20 @@ export default function Page() {
     const previousData = data
     setData((prev) => prev.filter((c) => c.id !== id))
     toast.loading("Deleting…", { id: `del-${id}` })
-    toast.success("Opportunity deleted", { id: `del-${id}` })
-    setPendingDeleteId(null)
+    try {
+      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/deleteOpportunity", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opportunityId: id }),
+      })
+      if (!res.ok) throw new Error("Failed to delete opportunity")
+      toast.success("Opportunity deleted", { id: `del-${id}` })
+    } catch (e) {
+      setData(previousData)
+      toast.error("Failed to delete opportunity", { id: `del-${id}` })
+    } finally {
+      setPendingDeleteId(null)
+    }
   }
 
   const columns = React.useMemo<ColumnDef<Opportunity>[]>(
@@ -456,7 +497,11 @@ export default function Page() {
       },
       { id: "contact", header: "Contact", cell: ({ row }) => <div>{row.original.contact?.name || "-"}</div> },
       { accessorKey: "monetaryValue", header: "Value", cell: ({ row }) => <div>${Number(row.getValue("monetaryValue") || 0).toLocaleString()}</div> },
-      { accessorKey: "status", header: "Status" },
+      { 
+        accessorKey: "status", 
+        header: "Status",
+        cell: ({ row }) => <StatusBadge status={String(row.getValue("status") || "")} />
+      },
       { accessorKey: "source", header: "Source" },
       { accessorKey: "createdAt", header: "Created", cell: ({ row }) => <div>{new Date(row.getValue("createdAt")).toLocaleString()}</div> },
       {
@@ -641,6 +686,20 @@ export default function Page() {
                   )}
                 </select>
               </div>
+              <div className="grid gap-2">
+                <label className="text-sm">Status</label>
+                <select
+                  name="status"
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value)}
+                  className="h-9 rounded-md border px-3 text-sm"
+                >
+                  <option value="open">Open</option>
+                  <option value="closed">Closed</option>
+                  <option value="won">Won</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setOpenAdd(false)}>Cancel</Button>
                 <Button type="submit" disabled={addLoading}>
@@ -663,7 +722,7 @@ export default function Page() {
               <div className="text-sm"><span className="text-muted-foreground">Contact:</span> {selected?.contact?.name || "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Phone:</span> {selected?.contact?.phone || "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Value:</span> ${selected ? selected.monetaryValue.toLocaleString() : 0}</div>
-              <div className="text-sm"><span className="text-muted-foreground">Status:</span> {selected?.status || "-"}</div>
+              <div className="text-sm"><span className="text-muted-foreground">Status:</span> {selected?.status ? <StatusBadge status={selected.status} /> : "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Source:</span> {selected?.source || "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Created:</span> {selected ? new Date(selected.createdAt).toLocaleString() : "-"}</div>
               <div className="text-sm"><span className="text-muted-foreground">Updated:</span> {selected ? new Date(selected.updatedAt).toLocaleString() : "-"}</div>
@@ -681,7 +740,10 @@ export default function Page() {
                       <li key={o.id} className="p-3 flex items-center justify-between gap-2">
                         <div>
                           <div className="text-sm font-medium">{o.name}</div>
-                          <div className="text-xs text-muted-foreground">{o.status} · {new Date(o.updatedAt || o.createdAt).toLocaleDateString()}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            <StatusBadge status={o.status} />
+                            <span>· {new Date(o.updatedAt || o.createdAt).toLocaleDateString()}</span>
+                          </div>
                         </div>
                         <div className="text-sm font-medium">${o.monetaryValue.toLocaleString()}</div>
                       </li>

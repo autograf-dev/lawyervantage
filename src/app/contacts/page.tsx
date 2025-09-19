@@ -45,6 +45,17 @@ type ContactOpportunity = {
   updatedAt: string
 }
 
+type RawOpportunity = {
+  id?: string | number
+  name?: string
+  monetaryValue?: number | string
+  status?: string
+  createdAt?: string
+  updatedAt?: string
+  contactId?: string | number
+  contact?: { id?: string | number } | null
+}
+
 type RawContact = {
   id?: string | number
   contactName?: string
@@ -141,7 +152,7 @@ export default function Page() {
       const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
       if (!res.ok) throw new Error("Failed to fetch opportunities")
       const json = await res.json()
-      const arr = (json?.opportunities?.opportunities || []) as any[]
+      const arr = (json?.opportunities?.opportunities || []) as RawOpportunity[]
       const filtered = arr.filter((o) => String(o.contactId || o.contact?.id || "") === String(contactId))
       const mapped: ContactOpportunity[] = filtered.map((o) => ({
         id: String(o.id ?? ""),

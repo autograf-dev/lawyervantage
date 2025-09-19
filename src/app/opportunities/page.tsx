@@ -63,6 +63,36 @@ type Opportunity = {
   contact: OpportunityContact
 }
 
+type RawOpportunity = {
+  id?: string | number
+  name?: string
+  monetaryValue?: number | string
+  pipelineId?: string
+  pipelineStageId?: string
+  pipelineStageUId?: string
+  assignedTo?: string | null
+  status?: string
+  source?: string
+  lastStatusChangeAt?: string
+  lastStageChangeAt?: string
+  lastActionDate?: string
+  indexVersion?: number | string
+  createdAt?: string
+  updatedAt?: string
+  contactId?: string | number
+  locationId?: string | number
+  lostReasonId?: string | null
+  relations?: { objectKey?: string; fullName?: string }[]
+  contact?: {
+    id?: string | number
+    name?: string
+    companyName?: string | null
+    email?: string | null
+    phone?: string | null
+    tags?: string[]
+  } | null
+}
+
 function useOpportunities() {
   const [data, setData] = React.useState<Opportunity[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
@@ -76,8 +106,8 @@ function useOpportunities() {
         const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
         if (!res.ok) throw new Error("Failed to fetch opportunities")
         const json = await res.json().catch(() => null)
-        const arr = (json && json.opportunities && json.opportunities.opportunities) || []
-        const mapped: Opportunity[] = arr.map((o: any) => ({
+        const arr = ((json && json.opportunities && json.opportunities.opportunities) || []) as RawOpportunity[]
+        const mapped: Opportunity[] = arr.map((o) => ({
           id: String(o.id ?? ""),
           name: String(o.name ?? ""),
           monetaryValue: Number(o.monetaryValue ?? 0),
@@ -99,7 +129,7 @@ function useOpportunities() {
           relations: o.relations ?? [],
           contact: {
             id: String(o.contact?.id ?? o.contactId ?? ""),
-            name: String(o.contact?.name ?? o.relations?.find?.((r: any) => r.objectKey === "contact")?.fullName ?? ""),
+            name: String(o.contact?.name ?? (o.relations || []).find((r) => r.objectKey === "contact")?.fullName ?? ""),
             companyName: o.contact?.companyName ?? null,
             email: o.contact?.email ?? null,
             phone: o.contact?.phone ?? null,
@@ -184,9 +214,9 @@ export default function Page() {
       const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
       if (!res.ok) throw new Error("Failed to fetch opportunities")
       const json = await res.json().catch(() => null)
-      const arr = (json && json.opportunities && json.opportunities.opportunities) || []
-      const filtered = arr.filter((o: any) => String(o.contactId || o.contact?.id || "") === String(contactId))
-      const mapped: Opportunity[] = filtered.map((o: any) => ({
+      const arr = ((json && json.opportunities && json.opportunities.opportunities) || []) as RawOpportunity[]
+      const filtered = arr.filter((o) => String(o.contactId || o.contact?.id || "") === String(contactId))
+      const mapped: Opportunity[] = filtered.map((o) => ({
         id: String(o.id ?? ""),
         name: String(o.name ?? ""),
         monetaryValue: Number(o.monetaryValue ?? 0),
@@ -208,7 +238,7 @@ export default function Page() {
         relations: o.relations ?? [],
         contact: {
           id: String(o.contact?.id ?? o.contactId ?? ""),
-          name: String(o.contact?.name ?? o.relations?.find?.((r: any) => r.objectKey === "contact")?.fullName ?? ""),
+          name: String(o.contact?.name ?? (o.relations || []).find((r) => r.objectKey === "contact")?.fullName ?? ""),
           companyName: o.contact?.companyName ?? null,
           email: o.contact?.email ?? null,
           phone: o.contact?.phone ?? null,
@@ -588,7 +618,7 @@ export default function Page() {
               <div className="text-sm"><span className="text-muted-foreground">Updated:</span> {selected ? new Date(selected.updatedAt).toLocaleString() : "-"}</div>
 
             <div className="pt-2">
-              <div className="text-sm font-medium">Contact's opportunities {relatedLoading ? "(loading…)" : `(${relatedForContact.length})`}</div>
+              <div className="text-sm font-medium">Contact&apos;s opportunities {relatedLoading ? "(loading…)" : `(${relatedForContact.length})`}</div>
               <div className="mt-2 rounded-md border">
                 {relatedLoading ? (
                   <div className="p-3 text-sm text-muted-foreground">Loading…</div>

@@ -20,9 +20,10 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table"
-import { ArrowUpDown, Pencil, Trash2, Plus } from "lucide-react"
+import { ArrowUpDown, Pencil, Trash2, Plus, Grid3x3, Table as TableIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { KanbanBoard, type KanbanCard, type KanbanStage } from "@/components/kanban-board"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
 import { Dialog as ConfirmDialog, DialogContent as ConfirmContent, DialogHeader as ConfirmHeader, DialogTitle as ConfirmTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
@@ -207,6 +208,57 @@ export default function Page() {
   const [addLoading, setAddLoading] = React.useState(false)
   const [relatedForContact, setRelatedForContact] = React.useState<Opportunity[]>([])
   const [relatedLoading, setRelatedLoading] = React.useState(false)
+  const [viewMode, setViewMode] = React.useState<'table' | 'kanban'>('table')
+
+  // Map opportunity status to kanban stage
+  const statusToKanbanStage = (status: string): KanbanStage => {
+    switch (status.toLowerCase()) {
+      case 'open':
+      case 'contacted':
+        return 'contacted'
+      case 'consultation-booked':
+      case 'consultation':
+        return 'consultation-booked'
+      case 'won':
+      case 'signed':
+        return 'signed'
+      case 'lost':
+      case 'abandoned':
+        return 'lost'
+      default:
+        return 'contacted'
+    }
+  }
+
+  // Map kanban stage back to opportunity status
+  const kanbanStageToStatus = (stage: KanbanStage): string => {
+    switch (stage) {
+      case 'contacted':
+        return 'open'
+      case 'consultation-booked':
+        return 'consultation-booked'
+      case 'signed':
+        return 'won'
+      case 'lost':
+        return 'lost'
+      default:
+        return 'open'
+    }
+  }
+
+  // Convert opportunities to kanban cards
+  const opportunitiesToKanbanCards = (opportunities: Opportunity[]): KanbanCard[] => {
+    return opportunities.map(opp => ({
+      id: opp.id,
+      title: opp.name,
+      value: opp.monetaryValue,
+      contactName: opp.contact?.name,
+      description: `${opp.source || 'Unknown source'}`,
+      stage: statusToKanbanStage(opp.status),
+      createdAt: opp.createdAt,
+      updatedAt: opp.updatedAt,
+    }))
+  }
 
   const openDetails = React.useCallback((opp: Opportunity) => {
     setSelected(opp)
@@ -525,6 +577,74 @@ export default function Page() {
     }
   }
 
+  // Handle moving cards in kanban board
+  async function handleKanbanCardMove(cardId: string, newStage: KanbanStage) {
+    const opportunity = data.find(o => o.id === cardId)
+    if (!opportunity) return
+
+    const newStatus = kanbanStageToStatus(newStage)
+    if (opportunity.status === newStatus) return
+
+    // Optimistic update
+    const updatedOpportunity = { ...opportunity, status: newStatus, updatedAt: new Date().toISOString() }
+    setData(prev => prev.map(o => o.id === cardId ? updatedOpportunity : o))
+    
+    // Update selected opportunity if it's the same one
+    if (selected?.id === cardId) {
+      setSelected(updatedOpportunity)
+    }
+
+    toast.loading("Moving opportunity…", { id: `move-${cardId}` })
+
+    try {
+      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/updateOpportunity", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({
+          id: cardId,
+          name: opportunity.name,
+          status: newStatus,
+          monetaryValue: opportunity.monetaryValue,
+          source: opportunity.source,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to update opportunity")
+      toast.success("Opportunity moved", { id: `move-${cardId}` })
+    } catch (error) {
+      // Revert optimistic update
+      setData(prev => prev.map(o => o.id === cardId ? opportunity : o))
+      if (selected?.id === cardId) {
+        setSelected(opportunity)
+      }
+      toast.error("Failed to move opportunity", { id: `move-${cardId}` })
+    }
+  }
+
+  function handleKanbanCardClick(card: KanbanCard) {
+    const opportunity = data.find(o => o.id === card.id)
+    if (opportunity) {
+      openDetails(opportunity)
+    }
+  }
+
+  function handleKanbanEditCard(card: KanbanCard) {
+    const opportunity = data.find(o => o.id === card.id)
+    if (opportunity) {
+      openEdit(opportunity)
+    }
+  }
+
+  function handleKanbanDeleteCard(cardId: string) {
+    confirmDelete(cardId)
+  }
+
+  function handleKanbanAddCard(stage: KanbanStage) {
+    const status = kanbanStageToStatus(stage)
+    setFormStatus(status)
+    openEdit()
+  }
+
   const columns = React.useMemo<ColumnDef<Opportunity>[]>(
     () => [
       {
@@ -637,7 +757,27 @@ export default function Page() {
               <h1 className="text-[1.4rem] font-semibold leading-none">Opportunities - Legal Lab</h1>
               <p className="text-muted-foreground">Create, update, and edit your opportunities from here.</p>
             </div>
-            <div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center border rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-3"
+                  onClick={() => setViewMode('table')}
+                >
+                  <TableIcon className="mr-2 h-4 w-4" />
+                  Table
+                </Button>
+                <Button
+                  variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-3"
+                  onClick={() => setViewMode('kanban')}
+                >
+                  <Grid3x3 className="mr-2 h-4 w-4" />
+                  Kanban
+                </Button>
+              </div>
               <Button onClick={() => openEdit()} className="h-9">
                 <Plus className="mr-2 h-4 w-4" /> Add opportunity
               </Button>
@@ -645,80 +785,96 @@ export default function Page() {
           </div>
 
           <div className="w-full space-y-3">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Search opportunities..."
-                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                onChange={(e) => table.getColumn("name")?.setFilterValue(e.target.value)}
-                className="w-[280px] h-9"
-              />
-            </div>
+            {viewMode === 'table' ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Search opportunities..."
+                    value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                    onChange={(e) => table.getColumn("name")?.setFilterValue(e.target.value)}
+                    className="w-[280px] h-9"
+                  />
+                </div>
 
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header, idx) => {
-                      const isFirst = header.column.id === "select"
-                      const isLast = idx === headerGroup.headers.length - 1
-                      const cls = isFirst ? "w-[36px]" : isLast ? "w-[84px] text-right" : undefined
-                      return (
-                        <TableHead key={header.id} className={cls}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={`s-${i}`}>
-                      {table.getAllLeafColumns().map((col, j) => (
-                        <TableCell key={`${col.id}-${j}`}>
-                          <Skeleton className="h-4 w-full" />
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header, idx) => {
+                          const isFirst = header.column.id === "select"
+                          const isLast = idx === headerGroup.headers.length - 1
+                          const cls = isFirst ? "w-[36px]" : isLast ? "w-[84px] text-right" : undefined
+                          return (
+                            <TableHead key={header.id} className={cls}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                            </TableHead>
+                          )
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={`s-${i}`}>
+                          {table.getAllLeafColumns().map((col, j) => (
+                            <TableCell key={`${col.id}-${j}`}>
+                              <Skeleton className="h-4 w-full" />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                          No results.
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      No results.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-              </Table>
-            </div>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                  </Table>
+                </div>
 
-            <div className="flex items-center justify-between py-2">
-              <div className="text-muted-foreground text-sm">
-                {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
+                <div className="flex items-center justify-between py-2">
+                  <div className="text-muted-foreground text-sm">
+                    {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+                      Previous
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <KanbanBoard
+                  cards={opportunitiesToKanbanCards(data)}
+                  onCardMove={handleKanbanCardMove}
+                  onCardClick={handleKanbanCardClick}
+                  onEditCard={handleKanbanEditCard}
+                  onDeleteCard={handleKanbanDeleteCard}
+                  onAddCard={handleKanbanAddCard}
+                  loading={loading}
+                />
               </div>
-              <div className="flex items-center gap-1.5">
-                <Button variant="outline" size="sm" className="h-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm" className="h-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-                  Next
-                </Button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

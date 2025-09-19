@@ -91,7 +91,7 @@ function useOpportunities() {
   const fetchOps = async () => {
     setLoading(true)
     try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
+      const res = await fetch("https://lawyervantage-tclegal.netlify.app/.netlify/functions/getOpportunities")
       if (!res.ok) throw new Error("Failed to fetch opportunities")
       const json = await res.json()
       const arr = (json?.opportunities?.opportunities || []) as RawOpportunity[]

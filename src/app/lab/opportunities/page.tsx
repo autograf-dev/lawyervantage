@@ -133,7 +133,7 @@ function useOpportunities() {
     async function fetchOpportunities() {
       setLoading(true)
       try {
-        const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
+        const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/getOpportunities")
         if (!res.ok) throw new Error("Failed to fetch opportunities")
         const json = await res.json().catch(() => null)
         const arr = ((json && json.opportunities && json.opportunities.opportunities) || []) as RawOpportunity[]
@@ -288,7 +288,7 @@ export default function Page() {
     async function fetchContacts() {
       setContactsLoading(true)
       try {
-        const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getContacts")
+        const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/getContacts")
         if (!res.ok) throw new Error("Failed to fetch contacts")
         const json = await res.json().catch(() => null)
         const arr = ((json && json.contacts && json.contacts.contacts) || []) as Array<{
@@ -320,7 +320,7 @@ export default function Page() {
   async function fetchRelatedForContact(contactId: string) {
     setRelatedLoading(true)
     try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/getOpportunities")
+      const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/getOpportunities")
       if (!res.ok) throw new Error("Failed to fetch opportunities")
       const json = await res.json().catch(() => null)
       const arr = ((json && json.opportunities && json.opportunities.opportunities) || []) as RawOpportunity[]
@@ -405,7 +405,7 @@ export default function Page() {
       try {
         const payload: { id: string; name: string; status: string; monetaryValue: number; source: string; contactId?: string } = { id: editingId, name, status, monetaryValue, source: "Lawyer Vantage Legal Lab" }
         if (contactId && contactId !== previous?.contactId) payload.contactId = contactId
-        const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/updateOpportunity", {
+        const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/updateOpportunity", {
           method: "PUT",
           headers: { "Content-Type": "application/json", "Accept": "application/json" },
           body: JSON.stringify(payload),
@@ -511,7 +511,7 @@ export default function Page() {
     setAddLoading(true)
     toast.loading("Creating opportunity…", { id: "add-opportunity" })
     try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/addOpportunity", {
+      const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/addOpportunity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, contactId, monetaryValue, status, source: "Lawyer Vantage Legal Lab" }),
@@ -562,7 +562,7 @@ export default function Page() {
     setData((prev) => prev.filter((c) => c.id !== id))
     toast.loading("Deleting…", { id: `del-${id}` })
     try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/deleteOpportunity", {
+      const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/deleteOpportunity", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ opportunityId: id }),
@@ -597,7 +597,7 @@ export default function Page() {
     toast.loading("Moving opportunity…", { id: `move-${cardId}` })
 
     try {
-      const res = await fetch("https://lawyervantage.netlify.app/.netlify/functions/updateOpportunity", {
+      const res = await fetch("https://lawyervantage-legallab.netlify.app/.netlify/functions/updateOpportunity", {
         method: "PUT",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({
